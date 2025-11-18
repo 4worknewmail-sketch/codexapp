@@ -23,6 +23,28 @@ source venv/bin/activate
 pip install -r backend/requirements.txt
 ```
 
+### Quick local smoke test (while running Vite dev server)
+
+In one terminal tab for the backend:
+
+```bash
+python backend/manage.py migrate
+python backend/manage.py runserver 0.0.0.0:8000
+```
+
+In a second terminal tab for the frontend (API base defaults to `http://localhost:8000`):
+
+```bash
+pnpm install
+pnpm dev
+```
+
+If your API lives elsewhere, set `VITE_API_BASE_URL` before running the frontend:
+
+```bash
+VITE_API_BASE_URL=https://api.example.com pnpm dev
+```
+
 ## Database + admin
 
 ```bash

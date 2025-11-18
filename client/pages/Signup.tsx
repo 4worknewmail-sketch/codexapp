@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { API_BASE_URL } from "@/lib/api";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -42,6 +43,11 @@ export default function Signup() {
         <Button type="submit" className="w-full" disabled={loading}>
           {loading ? "Creating account..." : "Create account"}
         </Button>
+        <p className="text-xs text-slate-500">
+          Backend expected at {API_BASE_URL}. Start it with:
+          <br />
+          <code>python backend/manage.py runserver 0.0.0.0:8000</code>
+        </p>
         <p className="text-sm text-slate-600">
           Already have an account? <Link className="text-blue-600" to="/login">Log in</Link>
         </p>
