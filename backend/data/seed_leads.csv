@@ -1,0 +1,5 @@
+name,industry,location,email,phone,website,source
+Alice Johnson,Technology,United States,alice@example.com,555-123-4567,example.com,seed
+Ravi Kumar,Finance,India,ravi.kumar@example.com,555-987-6543,kumarfinance.com,seed
+Maria Lopez,Healthcare,Spain,maria.lopez@example.com,555-234-7890,lopezhealth.es,seed
+Chen Wei,Manufacturing,China,chen.wei@example.com,555-345-6789,weiindustrial.cn,seed
