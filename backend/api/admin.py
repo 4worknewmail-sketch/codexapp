@@ -1,6 +1,4 @@
 from django.contrib import admin
- codex/summarize-project-features-and-implementations
-main
 from .models import User, Lead, SavedList, SavedFilter, CreditTransaction
 
 
