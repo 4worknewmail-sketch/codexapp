@@ -43,6 +43,38 @@ async function request<T>(path: string, { method = "GET", body, token }: Request
     headers.Authorization = `Bearer ${token}`;
   }
 
+codex/summarize-project-features-and-implementations
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch (networkError) {
+    const reason =
+      networkError instanceof Error && networkError.message ? networkError.message : "Network request failed";
+    throw new Error(
+      `${reason}. Unable to reach the backend at ${API_BASE_URL}. ` +
+        `Start the Django server with: python backend/manage.py runserver 0.0.0.0:8000`
+    );
+  }
+
+  if (!response.ok) {
+    let message = response.statusText;
+    try {
+      const data = await response.json();
+      if (typeof data === "object" && data) {
+        message = (data as { detail?: string; message?: string }).detail ||
+          (data as { message?: string }).message ||
+          JSON.stringify(data);
+      }
+    } catch (jsonError) {
+      const fallbackText = await response.text();
+      if (fallbackText) message = fallbackText;
+    }
+    throw new Error(message || "Request failed");
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method,
     headers,
@@ -52,6 +84,7 @@ async function request<T>(path: string, { method = "GET", body, token }: Request
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(errorText || response.statusText);
+main
   }
 
   return (await response.json()) as T;
