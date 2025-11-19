@@ -1,7 +1,6 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
-
-from .models import CreditTransaction, Lead, SavedFilter, SavedList
+from .models import Lead, SavedList, SavedFilter, CreditTransaction
 
 User = get_user_model()
 

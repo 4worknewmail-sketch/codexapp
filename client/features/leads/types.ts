@@ -42,9 +42,3 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
 }
-
-export interface ProfileFilters {
-  keyword: string;
-  country: string;
-  industry: string;
-}

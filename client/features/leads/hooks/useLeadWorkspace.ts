@@ -4,15 +4,7 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { useLeadsSelection } from "@/hooks/useLeadsSelection";
-import type {
-  ChatMessage,
-  FilterCriteria,
-  Lead,
-  ProfileFilters,
-  SavedFilter,
-  SavedList,
-  UnlockKind,
-} from "../types";
+import type { ChatMessage, FilterCriteria, Lead, SavedFilter, SavedList, UnlockKind } from "../types";
 
 // Sample values reused by the AI mock generator to produce believable demo rows.
 const SAMPLE_FIRST_NAMES = ["Alex", "Jamie", "Taylor", "Riley", "Jordan"];
@@ -37,7 +29,6 @@ export interface LeadWorkspaceState {
   selection: ReturnType<typeof useLeadsSelection>;
   chatMessages: ChatMessage[];
   aiPrompt: string;
-  profileFilters: ProfileFilters;
 }
 
 export interface LeadWorkspaceActions {
@@ -61,9 +52,6 @@ export interface LeadWorkspaceActions {
   setCredits: React.Dispatch<React.SetStateAction<number>>;
   clearSelection: () => void;
   setChatMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
-  setProfileFilters: (
-    update: Partial<ProfileFilters> | ((prev: ProfileFilters) => ProfileFilters)
-  ) => void;
 }
 
 export const useLeadWorkspace = (
@@ -84,51 +72,34 @@ export const useLeadWorkspace = (
     { role: "assistant", content: "Need any help? Start chat now..." }
   ]);
   const [aiPrompt, setAiPrompt] = useState("");
-  const [profileFilters, setProfileFilters] = useState<ProfileFilters>({
-    keyword: "",
-    country: "",
-    industry: "",
-  });
 
   // Fetch leads + saved resources when a token is available.
   useEffect(() => {
     if (!accessToken) return;
-    let isMounted = true;
     const load = async () => {
+      await refreshProfile();
       try {
-        const profile = await refreshProfile();
-        if (!isMounted) return;
-        if (profile) {
-          setCredits(profile.credits);
-        }
         const fetchedLeads: Lead[] = await api.fetchLeads(accessToken);
-        if (!isMounted) return;
-        setLeads(fetchedLeads);
+        if (fetchedLeads.length === 0) {
+          // Import the editable seed CSV once so every new user sees data.
+          await api.importSeed(accessToken);
+        }
+        const finalLeads = fetchedLeads.length ? fetchedLeads : await api.fetchLeads(accessToken);
+        setLeads(finalLeads);
         const [lists, filters] = await Promise.all([
           api.listSavedLists(accessToken),
           api.listSavedFilters(accessToken),
         ]);
-        if (!isMounted) return;
         setSavedLists(lists);
         setSavedFilters(filters);
+        setCredits(profileCredits ?? 25);
       } catch (error) {
         console.error(error);
-        if (isMounted) {
-          toast.error("Unable to load your workspace");
-        }
+        toast.error("Unable to load your workspace");
       }
     };
     load();
-    return () => {
-      isMounted = false;
-    };
-  }, [accessToken, refreshProfile]);
-
-  useEffect(() => {
-    if (typeof profileCredits === "number") {
-      setCredits(profileCredits);
-    }
-  }, [profileCredits]);
+  }, [accessToken, profileCredits, refreshProfile]);
 
   const filteredLeads = useMemo(() => {
     const activeFilter = savedFilters.find((f) => f.id === activeFilterId);
@@ -140,21 +111,7 @@ export const useLeadWorkspace = (
           lead.location.toLowerCase().includes(search.toLowerCase()) ||
           lead.industry.toLowerCase().includes(search.toLowerCase());
 
-        const matchesProfileKeyword =
-          profileFilters.keyword.trim() === "" ||
-          lead.name.toLowerCase().includes(profileFilters.keyword.toLowerCase()) ||
-          lead.industry.toLowerCase().includes(profileFilters.keyword.toLowerCase()) ||
-          lead.location.toLowerCase().includes(profileFilters.keyword.toLowerCase());
-        const matchesProfileCountry =
-          profileFilters.country === "" || lead.location === profileFilters.country;
-        const matchesProfileIndustry =
-          profileFilters.industry === "" || lead.industry === profileFilters.industry;
-
-        if (!(matchesSearch && matchesProfileKeyword && matchesProfileCountry && matchesProfileIndustry)) {
-          return false;
-        }
-
-        if (!activeFilter) return true;
+        if (!activeFilter) return matchesSearch;
 
         const inCountries =
           activeFilter.filters.countries.length === 0 ||
@@ -163,24 +120,14 @@ export const useLeadWorkspace = (
           activeFilter.filters.industries.length === 0 ||
           activeFilter.filters.industries.includes(lead.industry);
         const hasTags = activeFilter.filters.tags.length === 0; // tags are UI-only today
-        return inCountries && inIndustries && hasTags;
+        return matchesSearch && inCountries && inIndustries && hasTags;
       })
       .filter((lead) => {
         if (!activeListId) return true;
         const list = savedLists.find((l) => l.id === activeListId);
         return list ? list.leads.includes(lead.id) : true;
       });
-  }, [
-    activeFilterId,
-    activeListId,
-    leads,
-    profileFilters.country,
-    profileFilters.industry,
-    profileFilters.keyword,
-    savedFilters,
-    savedLists,
-    search,
-  ]);
+  }, [activeFilterId, activeListId, leads, savedFilters, savedLists, search]);
 
   const sortedLeads = useMemo(() => {
     const sorted = [...filteredLeads];
@@ -215,13 +162,11 @@ export const useLeadWorkspace = (
         )
       );
       setCredits(result.credits ?? credits);
-      await refreshProfile();
       toast.success(kind === "email" ? "Email unlocked (–1 credit)" : "Phone unlocked (–2 credits)");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to unlock contact";
-      toast.error(message);
+      toast.error("Not enough credits to unlock");
     }
-  }, [accessToken, credits, refreshProfile]);
+  }, [accessToken, credits]);
 
   const syncLeadsFromApi = useCallback(async () => {
     if (!accessToken) return;
@@ -233,7 +178,6 @@ export const useLeadWorkspace = (
     if (!accessToken) return;
     await api.importSeed(accessToken);
     await syncLeadsFromApi();
-    toast.success("Seed leads loaded");
   }, [accessToken, syncLeadsFromApi]);
 
   const importLeads = useCallback(async (rows: Partial<Lead>[]) => {
@@ -349,14 +293,6 @@ export const useLeadWorkspace = (
     selection.clear();
   }, [selection]);
 
-  const updateProfileFilters = useCallback(
-    (update: Partial<ProfileFilters> | ((prev: ProfileFilters) => ProfileFilters)) => {
-      setProfileFilters((prev) => (typeof update === "function" ? update(prev) : { ...prev, ...update }));
-      setCurrentPage(1);
-    },
-    []
-  );
-
   const state: LeadWorkspaceState = {
     leads,
     paginatedLeads,
@@ -372,7 +308,6 @@ export const useLeadWorkspace = (
     selection,
     chatMessages,
     aiPrompt,
-    profileFilters,
   };
 
   const actions: LeadWorkspaceActions = {
@@ -396,7 +331,6 @@ export const useLeadWorkspace = (
     setCredits,
     clearSelection,
     setChatMessages,
-    setProfileFilters: updateProfileFilters,
   };
 
   return [state, actions];

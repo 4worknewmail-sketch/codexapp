@@ -1,25 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Menu,
-  X,
-  Settings,
-  Plus,
-  Trash2,
-  Edit,
-  Send,
-  MessageCircle,
-  LayoutDashboard,
-  Filter as FilterIcon,
-  ArrowDown,
-} from "lucide-react";
+import { Menu, X, Settings, Plus, Trash2, Edit, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useLeadsSelection } from "@/hooks/useLeadsSelection";
 import { useAuth } from "@/context/AuthContext";
@@ -27,16 +11,11 @@ import { api } from "@/lib/api";
 import { LeadToolbar } from "@/features/leads/components/LeadToolbar";
 import { LeadTable } from "@/features/leads/components/LeadTable";
 import { useLeadWorkspace } from "@/features/leads/hooks/useLeadWorkspace";
-import type { FilterCriteria, ProfileFilters, SavedFilter, SavedList } from "@/features/leads/types";
+import type { FilterCriteria, SavedFilter, SavedList } from "@/features/leads/types";
 import { exportSelectedLeads, parseCsvFile } from "@/features/leads/utils/csv";
 
-const FALLBACK_COUNTRIES = ["United States", "India", "United Kingdom", "Canada", "Australia"];
-const FALLBACK_INDUSTRIES = ["Technology", "Finance", "Healthcare", "Manufacturing", "Retail"];
-const TOP_UP_PACKS = [
-  { id: "starter", label: "25 credits · $5", credits: 25, amount: 500 },
-  { id: "growth", label: "60 credits · $12", credits: 60, amount: 1200 },
-  { id: "pro", label: "120 credits · $22", credits: 120, amount: 2200 },
-];
+const COUNTRIES = ["United States", "India", "United Kingdom", "Canada", "Australia"];
+const INDUSTRIES = ["Technology", "Finance", "Healthcare", "Manufacturing", "Retail"];
 
 export default function Index() {
   // Shared selection across table and saved list actions.
@@ -60,7 +39,6 @@ export default function Index() {
     activeFilterId,
     chatMessages,
     aiPrompt,
-    profileFilters,
   } = state;
   const {
     setSearch,
@@ -75,40 +53,14 @@ export default function Index() {
     updateFilter,
     deleteFilter,
     applyFilter,
+    importSeed,
     importLeads,
     generateLeads,
     setAiPrompt,
     setCredits,
     clearSelection,
     setChatMessages,
-    setProfileFilters,
   } = actions;
-
-  const availableCountries = useMemo(() => {
-    const unique = new Set(leads.map((lead) => lead.location));
-    const sorted = Array.from(unique).sort((a, b) => a.localeCompare(b));
-    return sorted.length > 0 ? sorted : FALLBACK_COUNTRIES;
-  }, [leads]);
-
-  const availableIndustries = useMemo(() => {
-    const unique = new Set(leads.map((lead) => lead.industry));
-    const sorted = Array.from(unique).sort((a, b) => a.localeCompare(b));
-    return sorted.length > 0 ? sorted : FALLBACK_INDUSTRIES;
-  }, [leads]);
-
-  const countriesForSelect = useMemo(() => {
-    if (!profileFilters.country || availableCountries.includes(profileFilters.country)) {
-      return availableCountries;
-    }
-    return [...availableCountries, profileFilters.country];
-  }, [availableCountries, profileFilters.country]);
-
-  const industriesForSelect = useMemo(() => {
-    if (!profileFilters.industry || availableIndustries.includes(profileFilters.industry)) {
-      return availableIndustries;
-    }
-    return [...availableIndustries, profileFilters.industry];
-  }, [availableIndustries, profileFilters.industry]);
 
   // UI-only state for panels and forms.
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -126,7 +78,8 @@ export default function Index() {
   const [filterTagInput, setFilterTagInput] = useState("");
   const [editingListId, setEditingListId] = useState<string | number | null>(null);
   const [editingFilterId, setEditingFilterId] = useState<string | number | null>(null);
-  const [selectedTopUp, setSelectedTopUp] = useState(TOP_UP_PACKS[0]);
+  const [topUpCredits, setTopUpCredits] = useState(25);
+  const [topUpAmount, setTopUpAmount] = useState(500); // cents
 
   // If Stripe redirects back with a session, finalize the credit top-up.
   useEffect(() => {
@@ -150,11 +103,6 @@ export default function Index() {
   }, [accessToken, setCredits]);
 
   const selectedCount = selection.getSelectedCount();
-  const handleProfileFilterChange = (updates: Partial<ProfileFilters>) => {
-    setProfileFilters((prev) => ({ ...prev, ...updates }));
-  };
-  const resetProfileFilters = () =>
-    setProfileFilters(() => ({ keyword: "", country: "", industry: "" }));
 
   // Saved list handlers ------------------------------------------------------
   const handleAddOrUpdateList = async () => {
@@ -163,15 +111,10 @@ export default function Index() {
       toast.error("Select at least one lead to save a list");
       return;
     }
-    if (!listNameInput.trim()) {
-      toast.error("Enter a list name");
-      return;
-    }
-    const trimmedName = listNameInput.trim();
     if (editingListId) {
-      await updateList(editingListId, trimmedName, selectedIds);
+      await updateList(editingListId, listNameInput, selectedIds);
     } else {
-      await createList(trimmedName, selectedIds);
+      await createList(listNameInput, selectedIds);
     }
     setListModalOpen(false);
     setEditingListId(null);
@@ -187,16 +130,11 @@ export default function Index() {
 
   // Saved filter handlers ----------------------------------------------------
   const handleSaveFilter = async () => {
-    if (!filterNameInput.trim()) {
-      toast.error("Enter a filter name");
-      return;
-    }
     const criteria: FilterCriteria = { countries: filterCountries, industries: filterIndustries, tags: filterTags };
-    const trimmedName = filterNameInput.trim();
     if (editingFilterId) {
-      await updateFilter(editingFilterId, trimmedName, criteria);
+      await updateFilter(editingFilterId, filterNameInput, criteria);
     } else {
-      await createFilter(trimmedName, criteria);
+      await createFilter(filterNameInput, criteria);
     }
     setFilterModalOpen(false);
     setEditingFilterId(null);
@@ -267,11 +205,7 @@ export default function Index() {
   const startCheckout = async () => {
     if (!accessToken) return;
     try {
-      const session = await api.createCheckoutSession(
-        accessToken,
-        selectedTopUp.amount,
-        selectedTopUp.credits
-      );
+      const session = await api.createCheckoutSession(accessToken, topUpAmount, topUpCredits);
       window.location.href = session.url;
     } catch (error) {
       toast.error("Unable to start checkout");
@@ -293,16 +227,9 @@ export default function Index() {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setDashboardOpen(true)}>
-            <LayoutDashboard className="h-4 w-4 mr-2" /> Dashboard
-          </Button>
-          <Button variant="secondary" size="sm" onClick={() => setDashboardOpen(true)}>
             Credits: {credits}
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => toast.info("Settings will be available soon.")}
-          >
+          <Button variant="ghost" size="icon" onClick={() => setSettingsModalOpen(true)}>
             <Settings className="h-5 w-5" />
           </Button>
           <Button variant="outline" size="sm" onClick={logout}>
@@ -334,24 +261,10 @@ export default function Index() {
                             <div className="font-medium">{list.name}</div>
                           </button>
                           <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                handleEditList(list);
-                              }}
-                            >
+                            <Button variant="ghost" size="icon" onClick={() => handleEditList(list)}>
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                deleteList(list.id);
-                              }}
-                            >
+                            <Button variant="ghost" size="icon" onClick={() => deleteList(list.id)}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
@@ -376,24 +289,10 @@ export default function Index() {
                             <div className="font-medium">{filter.name}</div>
                           </button>
                           <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                handleEditFilter(filter);
-                              }}
-                            >
+                            <Button variant="ghost" size="icon" onClick={() => handleEditFilter(filter)}>
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                deleteFilter(filter.id);
-                              }}
-                            >
+                            <Button variant="ghost" size="icon" onClick={() => deleteFilter(filter.id)}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
@@ -454,86 +353,6 @@ export default function Index() {
 
         {/* Main content */}
         <main className="flex-1 overflow-auto p-6 flex flex-col">
-          <Card className="mb-6 border-slate-200 dark:border-slate-800 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <div>
-                <Badge variant="secondary" className="mb-1">
-                  Profile+
-                </Badge>
-                <CardTitle className="text-lg">Find the exact leads you need</CardTitle>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Combine keyword, country, or industry filters. Leave any field empty to keep it flexible.
-                </p>
-              </div>
-              <FilterIcon className="h-6 w-6 text-slate-400" />
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-3">
-                <div>
-                  <Label htmlFor="profile-keyword" className="text-xs font-semibold text-slate-500">
-                    Keyword
-                  </Label>
-                  <Input
-                    id="profile-keyword"
-                    placeholder="Search name, company, or tag"
-                    value={profileFilters.keyword}
-                    onChange={(e) => handleProfileFilterChange({ keyword: e.target.value })}
-                    className="mt-1 dark:bg-slate-800 dark:border-slate-700"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs font-semibold text-slate-500">Country</Label>
-                  <Select
-                    value={profileFilters.country || "all"}
-                    onValueChange={(value) =>
-                      handleProfileFilterChange({ country: value === "all" ? "" : value })
-                    }
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Select country" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All countries</SelectItem>
-                      {countriesForSelect.map((country) => (
-                        <SelectItem key={country} value={country}>
-                          {country}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="text-xs font-semibold text-slate-500">Industry</Label>
-                  <Select
-                    value={profileFilters.industry || "all"}
-                    onValueChange={(value) =>
-                      handleProfileFilterChange({ industry: value === "all" ? "" : value })
-                    }
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Select industry" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All industries</SelectItem>
-                      {industriesForSelect.map((industry) => (
-                        <SelectItem key={industry} value={industry}>
-                          {industry}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" onClick={() => setAiChatOpen(true)}>
-                  <MessageCircle className="h-4 w-4 mr-2" /> Open AI chat
-                </Button>
-                <Button variant="ghost" size="sm" onClick={resetProfileFilters}>
-                  Reset filters
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
           <LeadToolbar
             search={search}
             sortOrder={sortOrder}
@@ -544,19 +363,13 @@ export default function Index() {
             onSortChange={setSortOrder}
             onExport={handleExportCSV}
             onImport={handleImportCSV}
-            onOpenChat={() => setAiChatOpen(true)}
           />
 
           {paginatedLeads.length === 0 ? (
             <div className="flex flex-col items-center justify-center flex-1 text-center">
               <div className="text-slate-500 dark:text-slate-400">
-                <p className="text-lg font-medium mb-2">No leads yet</p>
-                <p className="text-sm mb-4">
-                  Import a CSV, run Profile+ filters, or ask the AI chat to generate new prospects.
-                </p>
-                <Button variant="outline" size="sm" onClick={handleImportCSV}>
-                  <ArrowDown className="h-4 w-4 mr-2" /> Import CSV
-                </Button>
+                <p className="text-lg font-medium mb-2">No leads selected</p>
+                <p className="text-sm">Use a saved list or filter, or import CSV data.</p>
               </div>
             </div>
           ) : (
@@ -599,24 +412,13 @@ export default function Index() {
                 <span className="font-semibold">5 credits</span>
               </div>
             </div>
-            <div className="space-y-3">
-              <div className="text-sm font-semibold">Choose a credit pack</div>
-              <div className="grid gap-2 md:grid-cols-3">
-                {TOP_UP_PACKS.map((pack) => (
-                  <Button
-                    key={pack.id}
-                    type="button"
-                    variant={selectedTopUp.id === pack.id ? "default" : "outline"}
-                    className="justify-between"
-                    onClick={() => setSelectedTopUp(pack)}
-                  >
-                    {pack.label}
-                  </Button>
-                ))}
+            <div className="space-y-2">
+              <div className="text-sm font-semibold">Top up credits</div>
+              <div className="grid grid-cols-2 gap-2">
+                <Input type="number" value={topUpCredits} onChange={(e) => setTopUpCredits(parseInt(e.target.value, 10) || 0)} placeholder="Credits" />
+                <Input type="number" value={topUpAmount} onChange={(e) => setTopUpAmount(parseInt(e.target.value, 10) || 0)} placeholder="Amount (cents)" />
               </div>
-              <Button className="w-full" onClick={startCheckout}>
-                Buy {selectedTopUp.credits} credits (Card / Apple Pay)
-              </Button>
+              <Button className="w-full" onClick={startCheckout}>Start checkout (card/Apple Pay)</Button>
             </div>
           </div>
         </DialogContent>
@@ -664,7 +466,7 @@ export default function Index() {
             <div>
               <div className="text-sm font-semibold mb-2">Countries</div>
               <div className="flex flex-wrap gap-2">
-                {availableCountries.map((country) => (
+                {COUNTRIES.map((country) => (
                   <button
                     key={country}
                     className={`px-3 py-1 rounded-full text-xs border ${filterCountries.includes(country) ? "bg-blue-600 text-white" : "border-slate-300 dark:border-slate-700"}`}
@@ -682,7 +484,7 @@ export default function Index() {
             <div>
               <div className="text-sm font-semibold mb-2">Industries</div>
               <div className="flex flex-wrap gap-2">
-                {availableIndustries.map((industry) => (
+                {INDUSTRIES.map((industry) => (
                   <button
                     key={industry}
                     className={`px-3 py-1 rounded-full text-xs border ${filterIndustries.includes(industry) ? "bg-blue-600 text-white" : "border-slate-300 dark:border-slate-700"}`}
@@ -716,6 +518,26 @@ export default function Index() {
               </Button>
               <Button className="flex-1" variant="outline" onClick={() => setFilterModalOpen(false)}>
                 Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Settings Modal */}
+      <Dialog open={settingsModalOpen} onOpenChange={setSettingsModalOpen}>
+        <DialogContent className="dark:bg-slate-900">
+          <DialogHeader>
+            <DialogTitle>Settings</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 text-sm text-slate-600 dark:text-slate-300">
+            <p>Use this panel to seed data from the backend CSV or clear selections.</p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={importSeed}>
+                Load seed CSV
+              </Button>
+              <Button variant="outline" onClick={clearSelection}>
+                Clear selections
               </Button>
             </div>
           </div>

@@ -23,6 +23,7 @@ source venv/bin/activate
 pip install -r backend/requirements.txt
 ```
 
+codex/summarize-project-features-and-implementations
 ### Quick local smoke test (while running Vite dev server)
 
 In one terminal tab for the backend:
@@ -45,6 +46,7 @@ If your API lives elsewhere, set `VITE_API_BASE_URL` before running the frontend
 VITE_API_BASE_URL=https://api.example.com pnpm dev
 ```
 
+main
 ## Database + admin
 
 ```bash

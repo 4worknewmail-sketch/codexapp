@@ -13,8 +13,7 @@ interface AuthContextValue extends AuthState {
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string) => Promise<void>;
   logout: () => void;
-  refreshProfile: () => Promise<{ id: number; email: string; credits: number } | null>;
-  refreshAccessToken: () => Promise<boolean>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -23,21 +22,9 @@ const STORAGE_KEY = "leads-auth";
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, setState] = useState<AuthState>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored) as Partial<AuthState>;
-        return {
-          accessToken: parsed.accessToken ?? null,
-          refreshToken: parsed.refreshToken ?? null,
-          email: parsed.email ?? null,
-          credits: parsed.credits ?? 0,
-        };
-      }
-    } catch (error) {
-      // If previous runs left corrupted JSON in storage, wipe it so the app can load.
-      console.error("Failed to parse stored auth state; clearing it", error);
-      localStorage.removeItem(STORAGE_KEY);
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored) as AuthState;
     }
     return { accessToken: null, refreshToken: null, email: null, credits: 0 };
   });
@@ -46,37 +33,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
 
-  const refreshAccessToken = async () => {
-    if (!state.refreshToken) return false;
-    try {
-      const next = await api.refreshToken(state.refreshToken);
-      setState((prev) => ({ ...prev, accessToken: next.access }));
-      return true;
-    } catch (error) {
-      console.error("Token refresh failed", error);
-      logout();
-      return false;
-    }
-  };
-
   const refreshProfile = async () => {
-    if (!state.accessToken) return null;
+    if (!state.accessToken) return;
     try {
       const profile = await api.profile(state.accessToken);
       setState((prev) => ({ ...prev, email: profile.email, credits: profile.credits }));
-      return profile;
     } catch (error) {
       console.error(error);
-      if (error instanceof Error) {
-        const lowered = error.message.toLowerCase();
-        if (lowered.includes("401") || lowered.includes("unauthorized")) {
-          const refreshed = await refreshAccessToken();
-          if (refreshed) {
-            return refreshProfile();
-          }
-        }
-      }
-      return null;
     }
   };
 
@@ -109,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const value = useMemo(
-    () => ({ ...state, login, signup, logout, refreshProfile, refreshAccessToken }),
+    () => ({ ...state, login, signup, logout, refreshProfile }),
     [state.accessToken, state.refreshToken, state.email, state.credits]
   );
 
