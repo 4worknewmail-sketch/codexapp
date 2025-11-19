@@ -1,0 +1,26 @@
+# Windows command prompt quickstart (no PowerShell)
+
+REM --- Install dependencies (only first time) ---
+winget install --id Python.Python.3.12 -s winget
+winget install --id OpenJS.NodeJS.LTS -s winget
+npm install -g pnpm
+
+REM --- Clone or unzip the project, then from the project root ---
+cd path\to\project
+
+REM --- Backend: create venv, install deps, migrate, run ---
+py -m venv venv
+venv\Scripts\activate
+pip install -r backend\requirements.txt
+python backend\manage.py migrate
+python backend\manage.py runserver 0.0.0.0:8000
+
+REM (keep the backend window open while you use the app)
+
+REM --- Frontend: in a second Command Prompt window ---
+cd path\to\project
+pnpm install
+pnpm dev
+
+REM --- Optional production build ---
+pnpm build
