@@ -43,6 +43,7 @@ async function request<T>(path: string, { method = "GET", body, token }: Request
     headers.Authorization = `Bearer ${token}`;
   }
 
+codex/summarize-project-features-and-implementations
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
@@ -73,6 +74,17 @@ async function request<T>(path: string, { method = "GET", body, token }: Request
       if (fallbackText) message = fallbackText;
     }
     throw new Error(message || "Request failed");
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || response.statusText);
+main
   }
 
   return (await response.json()) as T;
