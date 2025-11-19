@@ -73,6 +73,7 @@ async function request<T>(path: string, { method = "GET", body, token }: Request
       if (fallbackText) message = fallbackText;
     }
     throw new Error(message || "Request failed");
+
   }
 
   return (await response.json()) as T;

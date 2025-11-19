@@ -20,15 +20,6 @@ pnpm install
 pnpm dev
 REM Optional production build:
 pnpm build
-
-REM Optional health checks (run in separate Command Prompt windows)
-REM Backend tests:
-python backend\manage.py test api -v 2
-
-REM Frontend checks:
-pnpm test -- --runInBand
-pnpm typecheck
-pnpm build
 ```
 
 > Keep the backend terminal running while using the app. Use a second Command Prompt for the frontend commands.
