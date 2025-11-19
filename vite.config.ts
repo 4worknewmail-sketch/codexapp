@@ -12,6 +12,12 @@ export default defineConfig(({ mode }) => ({
       allow: [".", "./client", "./shared", "./node_modules"],
       deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**", "server/**"],
     },
+    watch: {
+      // Ignore Python virtualenvs and backend templates so Vite's dependency scan
+      // doesn't try to parse them as client entries (which caused the "Unexpected export"
+      // error during dev on Windows).
+      ignored: ["**/venv/**", "**/backend/**"],
+    },
   },
   build: {
     outDir: "dist/spa",
@@ -22,6 +28,12 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./client"),
       "@shared": path.resolve(__dirname, "./shared"),
     },
+  },
+  optimizeDeps: {
+    // Constrain entry scanning to the SPA entry so esbuild doesn't walk Python
+    // packages or Django templates under venv/.
+    entries: ["index.html"],
+    exclude: ["venv", "backend"],
   },
 }));
 

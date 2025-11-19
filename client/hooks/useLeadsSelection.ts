@@ -31,6 +31,14 @@ export function useLeadsSelection() {
     });
   }, []);
 
+  const deselectLead = useCallback((leadId: number) => {
+    setSelectedLeadIds(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(leadId);
+      return newSet;
+    });
+  }, []);
+
   const deselectMultiple = useCallback((leadIds: number[]) => {
     setSelectedLeadIds(prev => {
       const newSet = new Set(prev);
@@ -76,6 +84,7 @@ export function useLeadsSelection() {
     selectedLeadIds,
     selectLead,
     selectMultiple,
+    deselectLead,
     deselectMultiple,
     selectAll,
     deselectAll,
