@@ -68,7 +68,6 @@ export default function Index() {
   const [dashboardOpen, setDashboardOpen] = useState(false);
   const [listModalOpen, setListModalOpen] = useState(false);
   const [filterModalOpen, setFilterModalOpen] = useState(false);
-  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
 
   const [listNameInput, setListNameInput] = useState("");
