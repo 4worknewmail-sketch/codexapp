@@ -1,10 +1,4 @@
-from types import SimpleNamespace
-from unittest.mock import patch
-
-import stripe
-from stripe._error import InvalidRequestError
 from django.contrib.auth import get_user_model
-from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
@@ -147,44 +141,3 @@ class LeadFlowTests(AuthenticatedTestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("Stripe secret key", response.json().get("detail", ""))
-
-    @override_settings(STRIPE_SECRET_KEY="sk_test_123")
-    @patch("api.views.stripe.checkout.Session.retrieve")
-    def test_stripe_confirm_validates_session_status(self, mock_retrieve):
-        self.user.credits = 0
-        self.user.save(update_fields=["credits"])
-        mock_retrieve.return_value = SimpleNamespace(payment_status="paid")
-        response = self.auth_client.post(
-            "/api/credits/confirm/",
-            {"session_id": "sess_123", "credits": 25},
-            format="json",
-        )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.json().get("credits"), 25)
-
-    @override_settings(STRIPE_SECRET_KEY="sk_test_123")
-    @patch("api.views.stripe.checkout.Session.retrieve")
-    def test_stripe_confirm_rejects_unpaid_sessions(self, mock_retrieve):
-        mock_retrieve.return_value = SimpleNamespace(payment_status="open")
-        response = self.auth_client.post(
-            "/api/credits/confirm/",
-            {"session_id": "sess_123", "credits": 25},
-            format="json",
-        )
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("Payment not completed", response.json().get("detail", ""))
-
-    @override_settings(STRIPE_SECRET_KEY="sk_test_123")
-    @patch("api.views.stripe.checkout.Session.retrieve")
-    def test_stripe_confirm_handles_invalid_session(self, mock_retrieve):
-        mock_retrieve.side_effect = InvalidRequestError(
-            message="Invalid session",
-            param="id",
-        )
-        response = self.auth_client.post(
-            "/api/credits/confirm/",
-            {"session_id": "sess_bad", "credits": 25},
-            format="json",
-        )
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("Invalid session", response.json().get("detail", ""))

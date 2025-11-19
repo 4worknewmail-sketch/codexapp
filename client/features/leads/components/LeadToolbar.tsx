@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, MessageCircle } from "lucide-react";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -10,7 +10,6 @@ interface LeadToolbarProps {
   onSortChange: (value: "asc" | "desc") => void;
   onExport: () => void;
   onImport: () => void;
-  onOpenChat?: () => void;
 }
 
 // Reusable toolbar for search, sort, and CSV import/export so the Index page
@@ -22,7 +21,6 @@ export const LeadToolbar: React.FC<LeadToolbarProps> = ({
   onSortChange,
   onExport,
   onImport,
-  onOpenChat,
 }) => {
   return (
     <div className="mb-6 space-y-4 md:space-y-0 md:flex md:items-center md:gap-4">
@@ -50,11 +48,6 @@ export const LeadToolbar: React.FC<LeadToolbarProps> = ({
         <Button variant="outline" size="sm" onClick={onImport}>
           <ArrowDown className="h-4 w-4 mr-2" /> Import
         </Button>
-        {onOpenChat && (
-          <Button variant="outline" size="sm" onClick={onOpenChat}>
-            <MessageCircle className="h-4 w-4 mr-2" /> AI Chat
-          </Button>
-        )}
       </div>
     </div>
   );

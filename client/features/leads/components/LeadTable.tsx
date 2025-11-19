@@ -78,13 +78,12 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                   {lead.emailUnlocked || lead.isImported ? (
                     <span className="text-slate-600 dark:text-slate-400">{lead.email}</span>
                   ) : (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-cyan-600 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-slate-800"
-                    onClick={() => onUnlockEmail(lead.id)}
-                  >
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-cyan-600 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-slate-800"
+                      onClick={() => onUnlockEmail(lead.id)}
+                    >
                       Click to Unlock
                     </Button>
                   )}
@@ -93,13 +92,12 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                   {lead.phoneUnlocked || lead.isImported ? (
                     <span className="text-slate-600 dark:text-slate-400">{lead.phone}</span>
                   ) : (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-slate-800"
-                    onClick={() => onUnlockPhone(lead.id)}
-                  >
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-slate-800"
+                      onClick={() => onUnlockPhone(lead.id)}
+                    >
                       Click to Unlock
                     </Button>
                   )}

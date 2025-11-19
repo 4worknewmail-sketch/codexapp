@@ -73,6 +73,7 @@ async function request<T>(path: string, { method = "GET", body, token }: Request
       if (fallbackText) message = fallbackText;
     }
     throw new Error(message || "Request failed");
+
   }
 
   return (await response.json()) as T;
@@ -112,8 +113,6 @@ export const api = {
     }),
   login: (payload: { email: string; password: string }) =>
     request<{ access: string; refresh: string }>("/api/auth/login/", { method: "POST", body: payload }),
-  refreshToken: (refreshToken: string) =>
-    request<{ access: string }>("/api/auth/refresh/", { method: "POST", body: { refresh: refreshToken } }),
   profile: (token: string) => request<{ id: number; email: string; credits: number }>("/api/auth/me/", { token }),
   fetchLeads: async (token: string): Promise<Lead[]> => {
     const response = await request<LeadResponse[]>("/api/leads/", { token });
